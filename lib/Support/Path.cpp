@@ -901,9 +901,9 @@ void directory_entry::replace_filename(const Twine &filename, file_status st) {
 }
 
 error_code has_magic(const Twine &path, const Twine &magic, bool &result) {
-  SmallString<32>  MagicStorage;
+  SmallString<512>  MagicStorage;
   StringRef Magic = magic.toStringRef(MagicStorage);
-  SmallString<32> Buffer;
+  SmallString<512> Buffer;
 
   if (error_code ec = get_magic(path, Magic.size(), Buffer)) {
     if (ec == errc::value_too_large) {
@@ -1050,7 +1050,7 @@ error_code has_magic(const Twine &path, const Twine &magic, bool &result) {
 }
 
 error_code identify_magic(const Twine &path, file_magic &result) {
-  SmallString<32> Magic;
+  SmallString<512> Magic;
   error_code ec = get_magic(path, Magic.capacity(), Magic);
   if (ec && ec != errc::value_too_large)
     return ec;
