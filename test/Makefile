@@ -43,6 +43,16 @@ extra-site-cfgs::
 
 ifneq ($(strip $(filter check-local-all,$(MAKECMDGOALS))),)
 ifndef TESTSUITE
+
+ifeq ($(NOCLING)$(shell test -f $(PROJ_OBJ_DIR)/../tools/cling/Makefile && echo OK), OK)
+LIT_ALL_TESTSUITES += $(PROJ_OBJ_DIR)/../tools/cling/test
+
+# Force creation of Cling's lit.site.cfg.
+cling-lit-site-cfg: FORCE
+	$(MAKE) -C $(PROJ_OBJ_DIR)/../tools/cling/test lit.site.cfg
+extra-lit-site-cfgs:: cling-lit-site-cfg
+endif
+
 ifeq ($(shell test -f $(PROJ_OBJ_DIR)/../tools/clang/Makefile && echo OK), OK)
 LIT_ALL_TESTSUITES += $(PROJ_OBJ_DIR)/../tools/clang/test
 
