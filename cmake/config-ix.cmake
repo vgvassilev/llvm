@@ -218,6 +218,7 @@ if( LLVM_USING_GLIBC )
   add_llvm_definitions( -D_GNU_SOURCE )
 endif()
 
+check_function_exists(__dso_handle HAVE___DSO_HANDLE)
 set(headers "sys/types.h")
 
 if (HAVE_INTTYPES_H)
