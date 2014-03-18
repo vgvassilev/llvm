@@ -616,6 +616,10 @@ void *JIT::getOrEmitGlobalVariable(const GlobalVariable *GV) {
     }
     addGlobalMapping(GV, Ptr);
   } else {
+    if (GV->hasWeakLinkage()) {
+      Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(GV->getName());
+      if (Ptr) return Ptr;
+    }
     // If the global hasn't been emitted to memory yet, allocate space and
     // emit it into memory.
     Ptr = getMemoryForGV(GV);
