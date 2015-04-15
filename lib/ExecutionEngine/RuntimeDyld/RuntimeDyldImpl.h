@@ -421,7 +421,7 @@ protected:
 public:
   RuntimeDyldImpl(RuntimeDyld::MemoryManager &MemMgr,
                   RuntimeDyld::SymbolResolver &Resolver)
-    : MemMgr(MemMgr), Resolver(Resolver), Checker(nullptr),
+    : MemMgr(MemMgr), Resolver(Resolver), Checker(nullptr), Relocations(4),
       ProcessAllSections(false), HasError(false) {
   }
 
