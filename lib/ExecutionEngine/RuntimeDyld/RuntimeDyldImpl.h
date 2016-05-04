@@ -250,6 +250,10 @@ protected:
   // Keep a map of common symbols to their info pairs
   typedef std::vector<SymbolRef> CommonSymbolList;
 
+  // A list of weak symbols and their section/offset pairs.
+  typedef std::vector<std::pair<symbol_iterator, section_iterator>>
+    WeakSymbolList;
+
   // For each symbol, keep a list of relocations based on it. Anytime
   // its address is reassigned (the JIT re-compiled the function, e.g.),
   // the relocations get re-resolved.
@@ -344,6 +348,11 @@ protected:
   /// Endian-aware write. Write the least significant Size bytes from Value to
   /// Dst.
   void writeBytesUnaligned(uint64_t Value, uint8_t *Dst, unsigned Size) const;
+
+  /// \brief Process the weak symbols encountered while loading an object file
+  /// and finalize definitions.
+  void emitWeakSymbols(const ObjectFile &Obj, ObjSectionToIDMap &LocalSections,
+                       WeakSymbolList &WeakSymbols);
 
   /// \brief Given the common symbols discovered in the object file, emit a
   /// new section for them and update the symbol mappings in the object and

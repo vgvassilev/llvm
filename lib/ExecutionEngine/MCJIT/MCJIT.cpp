@@ -203,6 +203,9 @@ void MCJIT::generateCodeForModule(Module *M) {
 
   // If the cache did not contain a suitable object, compile the object
   if (!ObjectToLoad) {
+
+    OwnedModules.markModuleAsLoaded(M);
+
     ObjectToLoad = emitObject(M);
     assert(ObjectToLoad && "Compilation did not produce an object.");
   }
@@ -228,8 +231,6 @@ void MCJIT::generateCodeForModule(Module *M) {
 
   Buffers.push_back(std::move(ObjectToLoad));
   LoadedObjects.push_back(std::move(*LoadedObject));
-
-  OwnedModules.markModuleAsLoaded(M);
 }
 
 void MCJIT::finalizeLoadedModules() {
