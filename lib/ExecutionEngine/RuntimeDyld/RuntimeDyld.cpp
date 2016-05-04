@@ -613,11 +613,12 @@ void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
     unsigned SectionID = findOrEmitSection(Obj, *SI, IsCode, LocalSections);
 
     DEBUG(
-      object::SymbolRef::Type SymType = Sym.getType();
-      dbgs() << "\tWeak symbol: Type: " << SymType << " Name: " << Name
-             << " SID: " << SectionID << " Offset: "
-             << format("%p", (uintptr_t)SectOffset)
-             << " flags: " << Flags << "\n"
+          ErrorOr<object::SymbolRef::Type> SymTypeOrErr = Sym.getType();
+          object::SymbolRef::Type SymType = *SymTypeOrErr;
+          dbgs() << "\tType: " << SymType << " (absolute) Name: " << Name
+                 << " SID: " << SectionID << " Offset: "
+                 << format("%p", (uintptr_t)SectOffset)
+                 << " flags: " << Flags << "\n"
     );
     GlobalSymbolTable[Name] =
       SymbolTableEntry(SectionID, SectOffset, RTDyldSymFlags);
