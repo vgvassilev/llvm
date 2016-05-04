@@ -34,10 +34,10 @@ public:
 
   RuntimeDyld::SymbolInfo findSymbol(const std::string &Name) override;
 
-  // MCJIT doesn't support logical dylibs.
+  // Defer to the client resolver for lookup in logical dylibs.
   RuntimeDyld::SymbolInfo
   findSymbolInLogicalDylib(const std::string &Name) override {
-    return nullptr;
+    return ClientResolver->findSymbolInLogicalDylib(Name);
   }
 
 private:

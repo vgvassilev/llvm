@@ -199,6 +199,9 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
   // Common symbols requiring allocation, with their sizes and alignments
   CommonSymbolList CommonSymbols;
 
+  // Weak symbols.
+  WeakSymbolList WeakSymbols;
+
   // Parse symbols
   DEBUG(dbgs() << "Parse symbols:\n");
   for (symbol_iterator I = Obj.symbol_begin(), E = Obj.symbol_end(); I != E;
@@ -207,7 +210,13 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
 
     if (Flags & SymbolRef::SF_Common)
       CommonSymbols.push_back(*I);
-    else {
+    else if (Flags & SymbolRef::SF_Weak) {
+      ErrorOr<section_iterator> SIOrErr = I->getSection();
+      Check(SIOrErr.getError());
+      section_iterator SI = *SIOrErr;
+      assert(SI != Obj.section_end() && "Weak symbol doesn't have section?");
+      WeakSymbols.push_back(std::make_pair(I, SI));
+    } else {
 
       // Get the symbol type.
       object::SymbolRef::Type SymType;
@@ -282,6 +291,9 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
       }
     }
   }
+
+  // Finalize weak symbols
+  emitWeakSymbols(Obj, LocalSections, WeakSymbols);
 
   // Allocate common symbols
   if (auto Err = emitCommonSymbols(Obj, CommonSymbols))
@@ -562,6 +574,54 @@ void RuntimeDyldImpl::writeBytesUnaligned(uint64_t Value, uint8_t *Dst,
       Value >>= 8;
     }
   }
+}
+
+void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
+                                      ObjSectionToIDMap &LocalSections,
+                                      WeakSymbolList &WeakSymbols) {
+  if (WeakSymbols.empty())
+    return;
+
+  DEBUG(dbgs() << "Processing weak symbols...\n");
+
+  for (const auto &SymAndSection : WeakSymbols) {
+    const SymbolRef &Sym = *SymAndSection.first;
+    ErrorOr<StringRef> NameOrErr = Sym.getName();
+    Check(NameOrErr.getError());
+    StringRef Name = *NameOrErr;
+
+    // Skip weak symbols already elsewhere.
+    if (GlobalSymbolTable.count(Name) ||
+        Resolver.findSymbolInLogicalDylib(Name)) {
+      DEBUG(dbgs() << "\tSkipping already emitted weak symbol '" << Name
+                   << "'\n");
+      continue;
+    }
+
+    // Ok - this is the first definition encountered. Finalize it.
+    section_iterator SI = SymAndSection.second;
+
+    uint32_t Flags = Sym.getFlags();
+    JITSymbolFlags RTDyldSymFlags = JITSymbolFlags::None;
+    if (Flags & SymbolRef::SF_Exported)
+      RTDyldSymFlags |= JITSymbolFlags::Exported;
+
+    uint64_t SectOffset;
+    Check(getOffset(Sym, *SI, SectOffset));
+    bool IsCode = SI->isText();
+    unsigned SectionID = findOrEmitSection(Obj, *SI, IsCode, LocalSections);
+
+    DEBUG(
+      object::SymbolRef::Type SymType = Sym.getType();
+      dbgs() << "\tWeak symbol: Type: " << SymType << " Name: " << Name
+             << " SID: " << SectionID << " Offset: "
+             << format("%p", (uintptr_t)SectOffset)
+             << " flags: " << Flags << "\n"
+    );
+    GlobalSymbolTable[Name] =
+      SymbolTableEntry(SectionID, SectOffset, RTDyldSymFlags);
+  }
+
 }
 
 Error RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
