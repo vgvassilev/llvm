@@ -210,7 +210,10 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
 
     if (Flags & SymbolRef::SF_Common)
       CommonSymbols.push_back(*I);
-    else if (Flags & SymbolRef::SF_Weak) {
+    else if ((Flags & SymbolRef::SF_Weak)
+             && !(Flags & SymbolRef::SF_Undefined)) {
+      // Weak *undefined* symbols are not in any section.
+      // Treat them as ordinary symbols below.
       ErrorOr<section_iterator> SIOrErr = I->getSection();
       Check(SIOrErr.getError());
       section_iterator SI = *SIOrErr;
