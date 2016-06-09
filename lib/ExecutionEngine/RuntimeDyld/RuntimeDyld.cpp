@@ -602,7 +602,7 @@ void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
     section_iterator SI = SymAndSection.second;
 
     uint32_t Flags = Sym.getFlags();
-    JITSymbolFlags RTDyldSymFlags = JITSymbolFlags::None;
+    JITSymbolFlags RTDyldSymFlags = JITSymbolFlags::Weak;
     if (Flags & SymbolRef::SF_Exported)
       RTDyldSymFlags |= JITSymbolFlags::Exported;
 
