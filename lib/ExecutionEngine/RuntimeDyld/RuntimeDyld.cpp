@@ -214,9 +214,11 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
              && !(Flags & SymbolRef::SF_Undefined)) {
       // Weak *undefined* symbols are not in any section.
       // Treat them as ordinary symbols below.
-      ErrorOr<section_iterator> SIOrErr = I->getSection();
-      Check(SIOrErr.getError());
-      section_iterator SI = *SIOrErr;
+      section_iterator SI = Obj.section_end();
+      if (auto SIOrErr = I->getSection())
+        SI = *SIOrErr;
+      else
+        return SIOrErr.takeError();
       assert(SI != Obj.section_end() && "Weak symbol doesn't have section?");
       WeakSymbols.push_back(std::make_pair(I, SI));
     } else {
@@ -296,7 +298,8 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
   }
 
   // Finalize weak symbols
-  emitWeakSymbols(Obj, LocalSections, WeakSymbols);
+  if (auto Err = emitWeakSymbols(Obj, LocalSections, WeakSymbols))
+    return std::move(Err);
 
   // Allocate common symbols
   if (auto Err = emitCommonSymbols(Obj, CommonSymbols))
@@ -579,19 +582,21 @@ void RuntimeDyldImpl::writeBytesUnaligned(uint64_t Value, uint8_t *Dst,
   }
 }
 
-void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
-                                      ObjSectionToIDMap &LocalSections,
-                                      WeakSymbolList &WeakSymbols) {
+Error RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
+                                       ObjSectionToIDMap &LocalSections,
+                                       WeakSymbolList &WeakSymbols) {
   if (WeakSymbols.empty())
-    return;
+    return Error::success();
 
   DEBUG(dbgs() << "Processing weak symbols...\n");
 
   for (const auto &SymAndSection : WeakSymbols) {
     const SymbolRef &Sym = *SymAndSection.first;
-    ErrorOr<StringRef> NameOrErr = Sym.getName();
-    Check(NameOrErr.getError());
-    StringRef Name = *NameOrErr;
+    StringRef Name;
+    if (auto NameOrErr = Sym.getName())
+      Name = *NameOrErr;
+    else
+      return NameOrErr.takeError();
 
     // Skip weak symbols already elsewhere.
     if (GlobalSymbolTable.count(Name) ||
@@ -610,14 +615,24 @@ void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
       RTDyldSymFlags |= JITSymbolFlags::Exported;
 
     uint64_t SectOffset;
-    Check(getOffset(Sym, *SI, SectOffset));
+    if (auto Err = getOffset(Sym, *SI, SectOffset))
+      return std::move(Err);
     bool IsCode = SI->isText();
-    unsigned SectionID = findOrEmitSection(Obj, *SI, IsCode, LocalSections);
+    unsigned SectionID;
+    if (auto SectionIDOrErr = findOrEmitSection(Obj, *SI, IsCode,LocalSections))
+      SectionID = *SectionIDOrErr;
+    else
+      return SectionIDOrErr.takeError();
 
     DEBUG(
-          ErrorOr<object::SymbolRef::Type> SymTypeOrErr = Sym.getType();
-          object::SymbolRef::Type SymType = *SymTypeOrErr;
-          dbgs() << "\tType: " << SymType << " (absolute) Name: " << Name
+          if (auto SymTypeOrErr = Sym.getType())
+            dbgs() << "\tType: "
+                   << *SymTypeOrErr;
+          else
+            dbgs() << "\tType: "
+                   << "unknown SymType";
+
+          dbgs() << " (absolute) Name: " << Name
                  << " SID: " << SectionID << " Offset: "
                  << format("%p", (uintptr_t)SectOffset)
                  << " flags: " << Flags << "\n"
@@ -626,6 +641,7 @@ void RuntimeDyldImpl::emitWeakSymbols(const ObjectFile &Obj,
       SymbolTableEntry(SectionID, SectOffset, RTDyldSymFlags);
   }
 
+  return Error::success();
 }
 
 Error RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,

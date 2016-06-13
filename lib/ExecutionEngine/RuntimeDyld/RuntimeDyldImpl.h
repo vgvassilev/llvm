@@ -351,8 +351,8 @@ protected:
 
   /// \brief Process the weak symbols encountered while loading an object file
   /// and finalize definitions.
-  void emitWeakSymbols(const ObjectFile &Obj, ObjSectionToIDMap &LocalSections,
-                       WeakSymbolList &WeakSymbols);
+  Error emitWeakSymbols(const ObjectFile &Obj, ObjSectionToIDMap &LocalSections,
+                        WeakSymbolList &WeakSymbols);
 
   /// \brief Given the common symbols discovered in the object file, emit a
   /// new section for them and update the symbol mappings in the object and
