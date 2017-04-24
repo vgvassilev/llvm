@@ -170,8 +170,8 @@ PassManagerBuilder::PassManagerBuilder() {
     MergeFunctions = false;
     PrepareForLTO = false;
     EnablePGOInstrGen = RunPGOInstrGen;
-    PGOInstrGen = PGOOutputFile;
-    PGOInstrUse = RunPGOInstrUse;
+    PGOInstrGen = RunPGOInstrGen.getValue();
+    PGOInstrUse = RunPGOInstrUse.getValue();
     PrepareForThinLTO = EnablePrepareForThinLTO;
     PerformThinLTO = false;
     DivergentTarget = false;
