@@ -472,7 +472,9 @@ private:
 
   // NB!  `LinkedObjects` needs to be destroyed before `NotifyFreed` because
   // `~ConcreteLinkedObject` calls `NotifyFreed`
+protected:
   std::map<VModuleKey, std::unique_ptr<LinkedObject>> LinkedObjects;
+private:
   bool ProcessAllSections = false;
 };
 
