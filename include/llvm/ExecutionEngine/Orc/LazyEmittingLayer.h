@@ -220,7 +220,7 @@ public:
   Error removeModule(VModuleKey K) {
     auto I = ModuleMap.find(K);
     assert(I != ModuleMap.end() && "VModuleKey K not valid here");
-    auto EDM = std::move(I.second);
+    auto EDM = std::move(I->second);
     ModuleMap.erase(I);
     return EDM->removeModuleFromBaseLayer(BaseLayer);
   }
